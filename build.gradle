@@ -1,0 +1,97 @@
+plugins {
+    id 'java'
+    id 'maven-publish'
+    id 'maven'
+    id 'signing'
+    id 'net.nemerosa.versioning' version '2.14.0'
+}
+
+group 'com.bsgrd.treasurer.edifact'
+version versioning.info.tag
+
+repositories {
+    mavenCentral()
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+        }
+    }
+}
+
+task javadocJar(type: Jar) {
+    classifier = 'javadoc'
+    from javadoc
+}
+
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+artifacts {
+    archives javadocJar, sourcesJar
+}
+
+signing {
+    sign configurations.archives
+    if (System.getenv('SIGNING_SECRET_KEY') != null && System.getenv('SIGNING_SECRET_KEY_PASSWORD') != null) {
+        useInMemoryPgpKeys(System.getenv("SIGNING_SECRET_KEY"), System.getenv("SIGNING_SECRET_KEY_PASSWORD"))
+    }
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+            repository(url: "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                authentication(userName: System.getenv("MAVEN_USERNAME"), password: System.getenv("MAVEN_PASSWORD"))
+            }
+
+            snapshotRepository(url: "https://s01.oss.sonatype.org/content/repositories/snapshots/") {
+                authentication(userName: System.getenv("MAVEN_USERNAME"), password: System.getenv("MAVEN_PASSWORD"))
+            }
+
+            pom.project {
+                name 'Treasurer Edifact'
+                packaging 'jar'
+                description 'Parser for EDIFACT files.'
+                url 'https://github.com/bsgrd/edifact-parser'
+
+                scm {
+                    connection "scm:git:git://github.com/bsgrd/edifact-parser.git"
+                    developerConnection "scm:git:git://github.com/bsgrd/edifact-parser.git"
+                    url "https://github.com/bsgrd/edifact-parser/tree/main"
+                }
+
+                licenses {
+                    license {
+                        name 'The Apache License, Version 2.0'
+                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id 'bsgrd'
+                        name 'Kasper Bisgaard'
+                        email 'kasper.bisgaard@live.com'
+                    }
+                }
+            }
+        }
+    }
+}
+
+dependencies {
+    implementation 'com.bsgrd.treasurer:edifact-deserializer:1.0.3'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.0'
+}
+
+test {
+    useJUnitPlatform()
+}
